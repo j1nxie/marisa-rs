@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 rand = "0.8.5"
 lazy_static = "1.4.0"
+egui = "0.20.0"
+egui_winit_vulkano = "0.21.0"
+vulkano = "0.32.3"

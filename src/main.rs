@@ -1,3 +1,5 @@
-fn main() {
-    println!("Hello, world!");
-}
+mod cpu;
+mod display;
+mod keypad;
+
+fn main() {}
