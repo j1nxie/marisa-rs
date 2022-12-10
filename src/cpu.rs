@@ -267,11 +267,11 @@ impl Cpu {
         let vy = self.v[y] as u16;
         let result = vx + vy;
         self.v[x] = result as u8;
-        self.v[0x0F] = if result > 0xFF { 1 } else { 0 };
+        self.v[0x0F] = u8::from(result > 0xFF);
     }
 
     fn op_8xy5(&mut self, x: usize, y: usize) {
-        self.v[0x0F] = if self.v[x] > self.v[y] { 1 } else { 0 };
+        self.v[0x0F] = u8::from(self.v[x] > self.v[y]);
         self.v[x] = self.v[x].wrapping_sub(self.v[y]);
     }
 
@@ -281,7 +281,7 @@ impl Cpu {
     }
 
     fn op_8xy7(&mut self, x: usize, y: usize) {
-        self.v[0x0F] = if self.v[y] > self.v[x] { 1 } else { 0 };
+        self.v[0x0F] = u8::from(self.v[y] > self.v[x]);
         self.v[x] = self.v[y].wrapping_sub(self.v[x]);
     }
 
@@ -362,7 +362,7 @@ impl Cpu {
 
     fn op_fx1e(&mut self, x: usize) {
         self.i += self.v[x] as u16;
-        self.v[0x0F] = if self.i > 0x0F00 { 1 } else { 0 };
+        self.v[0x0F] = u8::from(self.i > 0xF00);
     }
 
     fn op_fx29(&mut self, x: usize) {
