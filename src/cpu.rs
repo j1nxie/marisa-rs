@@ -77,9 +77,8 @@ impl Cpu {
         }
         self.sp = 0;
         self.dt = 0;
-        for (i, _) in FONT_SET.iter().enumerate() {
-            self.memory[i] = FONT_SET[i];
-        }
+        self.st = 0;
+        self.memory[0..FONT_SET.len()].copy_from_slice(&FONT_SET);
     }
 
     pub fn load(&mut self, data: &[u8]) {
@@ -105,6 +104,22 @@ impl Cpu {
         if self.st > 0 {
             self.st -= 1;
         }
+    }
+
+    pub fn dump_state(&self) -> String {
+        format!(
+            "PC: 0x{:04X} I: 0x{:04X}\n\
+             V: {:02X?}\n\
+             Stack: {:04X?} (SP: {})\n\
+             Timers: DT={:02X} ST={:02X}",
+            self.pc,
+            self.i,
+            self.v,
+            &self.stack[..self.sp as usize],
+            self.sp,
+            self.dt,
+            self.st
+        )
     }
 
     fn process_opcode(&mut self, opcode: u16) {
@@ -203,6 +218,7 @@ impl Cpu {
                 self.display.memory[y][x] = 0;
             }
         }
+        self.display.draw_flag = true;
     }
 
     fn op_00ee(&mut self) {
@@ -215,8 +231,8 @@ impl Cpu {
     }
 
     fn op_2nnn(&mut self, nnn: u16) {
+        self.stack[self.sp as usize] = self.pc;
         self.sp += 1;
-        self.stack[0] = self.pc;
         self.pc = nnn;
     }
 
@@ -243,7 +259,7 @@ impl Cpu {
     }
 
     fn op_7xkk(&mut self, x: usize, kk: u8) {
-        self.v[x] += kk;
+        self.v[x] = self.v[x].wrapping_add(kk);
     }
 
     fn op_8xy0(&mut self, x: usize, y: usize) {
@@ -252,14 +268,17 @@ impl Cpu {
 
     fn op_8xy1(&mut self, x: usize, y: usize) {
         self.v[x] |= self.v[y];
+        self.v[0x0F] = 0;
     }
 
     fn op_8xy2(&mut self, x: usize, y: usize) {
         self.v[x] &= self.v[y];
+        self.v[0x0F] = 0;
     }
 
     fn op_8xy3(&mut self, x: usize, y: usize) {
         self.v[x] ^= self.v[y];
+        self.v[0x0F] = 0;
     }
 
     fn op_8xy4(&mut self, x: usize, y: usize) {
@@ -271,23 +290,27 @@ impl Cpu {
     }
 
     fn op_8xy5(&mut self, x: usize, y: usize) {
-        self.v[0x0F] = u8::from(self.v[x] > self.v[y]);
-        self.v[x] = self.v[x].wrapping_sub(self.v[y]);
+        let vx = self.v[x];
+        let vy = self.v[y];
+        self.v[x] = vx.wrapping_sub(vy);
+        self.v[0x0F] = if vx >= vy { 1 } else { 0 };
     }
 
     fn op_8xy6(&mut self, x: usize, _y: usize) {
-        self.v[0x0F] = self.v[x] & 1;
+        let vx = self.v[x];
         self.v[x] >>= 1;
+        self.v[0x0F] = vx & 1;
     }
 
     fn op_8xy7(&mut self, x: usize, y: usize) {
-        self.v[0x0F] = u8::from(self.v[y] > self.v[x]);
         self.v[x] = self.v[y].wrapping_sub(self.v[x]);
+        self.v[0x0F] = u8::from(self.v[y] > self.v[x]);
     }
 
     fn op_8xye(&mut self, x: usize, _y: usize) {
-        self.v[0x0F] = (self.v[x] & 0b10000000) >> 7;
+        let vx = self.v[x];
         self.v[x] <<= 1;
+        self.v[0x0F] = (vx & 0b10000000) >> 7;
     }
 
     fn op_9xy0(&mut self, x: usize, y: usize) {
@@ -314,12 +337,13 @@ impl Cpu {
         for byte in 0..n as usize {
             let y = (self.v[y] as usize + byte) % HEIGHT;
             for bit in 0..8 {
-                let x = (self.v[x] as usize + byte) % WIDTH;
+                let x = (self.v[x] as usize + bit) % WIDTH;
                 let pixel = (self.memory[(self.i + byte as u16) as usize] >> (7 - bit)) & 1;
                 self.v[0x0F] |= pixel & self.display.memory[y][x];
                 self.display.memory[y][x] ^= pixel;
             }
         }
+        self.display.draw_flag = true;
     }
 
     fn op_ex9e(&mut self, x: usize) {
@@ -379,12 +403,14 @@ impl Cpu {
         for i in 0..(x + 1) {
             self.memory[(self.i + i as u16) as usize] = self.v[i];
         }
+        self.i = self.i + x as u16 + 1;
     }
 
     fn op_fx65(&mut self, x: usize) {
         for i in 0..(x + 1) {
             self.v[i] = self.memory[(self.i + i as u16) as usize];
         }
+        self.i = self.i + x as u16 + 1;
     }
 }
 

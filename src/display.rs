@@ -3,12 +3,14 @@ pub const HEIGHT: usize = 32;
 
 pub struct Display {
     pub memory: [[u8; WIDTH]; HEIGHT],
+    pub draw_flag: bool,
 }
 
 impl Display {
     pub fn new() -> Display {
         Display {
             memory: [[0; WIDTH]; HEIGHT],
+            draw_flag: false,
         }
     }
 
@@ -21,10 +23,7 @@ impl Display {
     }
 
     pub fn cls(&mut self) {
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                self.set_pixel(x, y, false);
-            }
-        }
+        self.memory = [[0; WIDTH]; HEIGHT];
+        self.draw_flag = true;
     }
 }
