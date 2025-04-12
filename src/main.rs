@@ -10,6 +10,10 @@ const SCALE: u32 = 15;
 const WINDOW_WIDTH: u32 = (display::WIDTH as u32) * SCALE;
 const WINDOW_HEIGHT: u32 = (display::HEIGHT as u32) * SCALE;
 
+const INSTRUCTIONS_PER_SECOND: u32 = 1000;
+const TIMER_FREQUENCY: u32 = 60;
+const CYCLES_PER_FRAME: u32 = INSTRUCTIONS_PER_SECOND / TIMER_FREQUENCY;
+
 fn handle_key_event(keycode: Keycode, pressed: bool, cpu: &mut cpu::Cpu) {
     let key = match keycode {
         Keycode::_1 => Some(0x1),
@@ -68,7 +72,9 @@ fn main() -> Result<(), anyhow::Error> {
     let mut event_pump = sdl_context.event_pump()?;
 
     'running: loop {
-        for event in event_pump.poll_iter() {
+        let frame_start = std::time::Instant::now();
+
+        while let Some(event) = event_pump.poll_event() {
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -91,7 +97,7 @@ fn main() -> Result<(), anyhow::Error> {
             }
         }
 
-        for _ in 0..(700 / 60) {
+        for _ in 0..CYCLES_PER_FRAME {
             cpu.execute();
         }
         cpu.decrement_timers();
@@ -119,7 +125,10 @@ fn main() -> Result<(), anyhow::Error> {
             cpu.display.draw_flag = false;
         }
 
-        std::thread::sleep(Duration::from_millis(16));
+        let frame_time = frame_start.elapsed();
+        if frame_time < Duration::from_millis(16) {
+            std::thread::sleep(Duration::from_millis(16) - frame_time);
+        }
     }
 
     Ok(())
